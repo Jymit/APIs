@@ -1,0 +1,48 @@
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+# Flask microframework, well-suited for building REST APIs in Python.
+
+items = [
+    {"id": 1, "name": "Item 1", "data": "Data 1"},
+    {"id": 2, "name": "Item 2", "data": "Data 2"},
+]
+
+# app.route decorator
+
+@app.route("/items", methods=["POST"])
+def create_item():
+    new_item = request.get_json()
+    new_item["id"] = len(items) + 1
+    items.append(new_item)
+    return jsonify(new_item), 201  # 201 Created
+
+
+@app.route("/items", methods=["GET"])
+def get_items():
+    return jsonify(items)
+
+
+@app.route("/items/<int:item_id>", methods=["PUT"])
+def update_item(item_id):
+    updated_item = request.get_json()
+    for index, item in enumerate(items):
+        if item["id"] == item_id:
+            updated_item["id"] = item_id  # Keep original ID
+            items[index] = updated_item
+            return jsonify(updated_item)
+    return jsonify({"error": "Item not found"}), 404
+
+
+@app.route("/items/<int:item_id>", methods=["DELETE"])
+def delete_item(item_id):
+    for index, item in enumerate(items):
+        if item["id"] == item_id:
+            del items[index]
+            return "", 204  # 204 No Content
+    return jsonify({"error": "Item not found"}), 404
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
