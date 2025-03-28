@@ -1,0 +1,88 @@
+<?php
+
+require 'vendor/autoload.php'; // Composer autoloader
+
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use Slim\Factory\AppFactory;
+
+// https://www.php-fig.org/psr/psr-7/
+// Slim Framework, a popular and lightweight PHP framework for building REST APIs.
+
+$app = AppFactory::create();
+
+$app->addBodyParsingMiddleware();
+
+// In-Memory Storage,  array for in-memory storage, real-world application would connect to a database.
+
+$items = [
+    ['id' => 1, 'name' => 'Item 1', 'data' => 'Data 1'],
+    ['id' => 2, 'name' => 'Item 2', 'data' => 'Data 2'],
+];
+
+// Create
+$app->post('/items', function (Request $request, Response $response, $args) use (&$items) {
+    $data = $request->getParsedBody();
+
+    if (!isset($data['name']) || !isset($data['data'])) {
+        $response->getBody()->write(json_encode(['error' => 'Name and data are required.']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $newItem = [
+        'id' => count($items) + 1,
+        'name' => $data['name'],
+        'data' => $data['data'],
+    ];
+
+    $items[] = $newItem;
+
+    $response->getBody()->write(json_encode($newItem));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
+// Read
+$app->get('/items', function (Request $request, Response $response, $args) use (&$items) {
+    $response->getBody()->write(json_encode($items));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
+// Update
+$app->put('/items/{id}', function (Request $request, Response $response, $args) use (&$items) {
+    $id = (int) $args['id'];
+    $data = $request->getParsedBody();
+
+    foreach ($items as $key => $item) {
+        if ($item['id'] === $id) {
+            if (isset($data['name'])) {
+                $items[$key]['name'] = $data['name'];
+            }
+            if (isset($data['data'])) {
+                $items[$key]['data'] = $data['data'];
+            }
+
+            $response->getBody()->write(json_encode($items[$key]));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+    }
+
+    $response->getBody()->write(json_encode(['error' => 'Item not found.']));
+    return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+});
+
+// Delete
+$app->delete('/items/{id}', function (Request $request, Response $response, $args) use (&$items) {
+    $id = (int) $args['id'];
+
+    foreach ($items as $key => $item) {
+        if ($item['id'] === $id) {
+            array_splice($items, $key, 1);
+            return $response->withStatus(204); // No Content
+        }
+    }
+
+    $response->getBody()->write(json_encode(['error' => 'Item not found.']));
+    return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+});
+
+$app->run();
